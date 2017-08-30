@@ -43,7 +43,7 @@
 
 #define OPERACAKE_SAMESIDE  OPERACAKE_PIN_U1CTRL(1)
 #define OPERACAKE_CROSSOVER OPERACAKE_PIN_U1CTRL(0)
-#define OPERACAKE_EN_LEDS (OPERACAKE_PIN_LEDEN2(1) | OPERACAKE_PIN_LEDEN2(0))
+#define OPERACAKE_EN_LEDS (OPERACAKE_PIN_LEDEN2(1) | OPERACAKE_PIN_LEDEN(0))
 #define OPERACAKE_GPIO_EN OPERACAKE_PIN_OE(0)
 #define OPERACAKE_GPIO_DISABLE OPERACAKE_PIN_OE(1)
 
@@ -127,7 +127,7 @@ uint8_t operacake_set_ports(uint8_t address, uint8_t PA, uint8_t PB) {
 	/* Check which side PA and PB are on */
 	if(((PA <= OPERACAKE_PA4) && (PB <= OPERACAKE_PA4))
 	    || ((PA > OPERACAKE_PA4) && (PB > OPERACAKE_PA4))) {
-		return 1;
+		// return 1;
 	}
 	
 	if(PA > OPERACAKE_PA4) {
@@ -141,6 +141,9 @@ uint8_t operacake_set_ports(uint8_t address, uint8_t PA, uint8_t PB) {
 		
 	reg = (OPERACAKE_GPIO_DISABLE | side
 					| pa | pb | OPERACAKE_EN_LEDS);
+	if (PA == 0 && PB == 0) {
+		reg = OPERACAKE_GPIO_EN | OPERACAKE_EN_LEDS;
+	}
 	operacake_write_reg(oc_bus, address, OPERACAKE_REG_OUTPUT, reg);
 	return 0;
 }

@@ -45,6 +45,7 @@ set(SRC_M4
 	"${PATH_HACKRF_FIRMWARE_COMMON}/operacake.c"
 	usb_api_operacake.c
 	usb_api_sweep.c
+	usb_api_counter.c
 	"${PATH_HACKRF_FIRMWARE_COMMON}/usb_queue.c"
 	"${PATH_HACKRF_FIRMWARE_COMMON}/fault_handler.c"
 	"${PATH_HACKRF_FIRMWARE_COMMON}/cpld_jtag.c"
