@@ -41,7 +41,7 @@ if(MSVC)
 	)
 	LIST(APPEND TOOLS_LINK_LIBS ${FFTW_LIBRARIES})
 else()
-    LIST(APPEND TOOLS_LINK_LIBS "/opt/local/lib/libfftw3f.dylib")
+    LIST(APPEND TOOLS_LINK_LIBS ${FFTW_LIBRARIES})
 endif()
 
 if(NOT libhackrf_SOURCE_DIR)
