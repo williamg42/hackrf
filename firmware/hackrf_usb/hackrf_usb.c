@@ -47,9 +47,56 @@
 #include "usb_api_counter.h"
 #include "usb_bulk_buffer.h"
 
+#include "cpld_xc2c.h"
+
 #include "hackrf-ui.h"
 
-static const usb_request_handler_fn vendor_request_handler[] = {
+// TODO: Duplicate code/knowledge, copied from /host/libhackrf/src/hackrf.c
+// TODO: Factor this into a shared #include so that firmware can use
+// the same values.
+typedef enum {
+	HACKRF_VENDOR_REQUEST_SET_TRANSCEIVER_MODE = 1,
+	HACKRF_VENDOR_REQUEST_MAX2837_WRITE = 2,
+	HACKRF_VENDOR_REQUEST_MAX2837_READ = 3,
+	HACKRF_VENDOR_REQUEST_SI5351C_WRITE = 4,
+	HACKRF_VENDOR_REQUEST_SI5351C_READ = 5,
+	HACKRF_VENDOR_REQUEST_SAMPLE_RATE_SET = 6,
+	HACKRF_VENDOR_REQUEST_BASEBAND_FILTER_BANDWIDTH_SET = 7,
+	HACKRF_VENDOR_REQUEST_RFFC5071_WRITE = 8,
+	HACKRF_VENDOR_REQUEST_RFFC5071_READ = 9,
+	HACKRF_VENDOR_REQUEST_SPIFLASH_ERASE = 10,
+	HACKRF_VENDOR_REQUEST_SPIFLASH_WRITE = 11,
+	HACKRF_VENDOR_REQUEST_SPIFLASH_READ = 12,
+	_HACKRF_VENDOR_REQUEST_WRITE_CPLD = 13,
+	HACKRF_VENDOR_REQUEST_BOARD_ID_READ = 14,
+	HACKRF_VENDOR_REQUEST_VERSION_STRING_READ = 15,
+	HACKRF_VENDOR_REQUEST_SET_FREQ = 16,
+	HACKRF_VENDOR_REQUEST_AMP_ENABLE = 17,
+	HACKRF_VENDOR_REQUEST_BOARD_PARTID_SERIALNO_READ = 18,
+	HACKRF_VENDOR_REQUEST_SET_LNA_GAIN = 19,
+	HACKRF_VENDOR_REQUEST_SET_VGA_GAIN = 20,
+	HACKRF_VENDOR_REQUEST_SET_TXVGA_GAIN = 21,
+	_HACKRF_VENDOR_REQUEST_SET_IF_FREQ = 22,
+	HACKRF_VENDOR_REQUEST_ANTENNA_ENABLE = 23,
+	HACKRF_VENDOR_REQUEST_SET_FREQ_EXPLICIT = 24,
+	HACKRF_VENDOR_REQUEST_USB_WCID_VENDOR_REQ = 25,
+	HACKRF_VENDOR_REQUEST_INIT_SWEEP = 26,
+	HACKRF_VENDOR_REQUEST_OPERACAKE_GET_BOARDS = 27,
+	HACKRF_VENDOR_REQUEST_OPERACAKE_SET_PORTS = 28,
+	HACKRF_VENDOR_REQUEST_SET_HW_SYNC_MODE = 29,
+	HACKRF_VENDOR_REQUEST_RESET = 30,
+	HACKRF_VENDOR_REQUEST_OPERACAKE_SET_RANGES = 31,
+	HACKRF_VENDOR_REQUEST_CLKOUT_ENABLE = 32,
+	HACKRF_VENDOR_REQUEST_SPIFLASH_STATUS = 33,
+	HACKRF_VENDOR_REQUEST_SPIFLASH_CLEAR_STATUS = 34,
+	HACKRF_VENDOR_REQUEST_OPERACAKE_GPIO_TEST = 35,
+	HACKRF_VENDOR_REQUEST_CPLD_CHECKSUM = 36,
+
+	/* Update to be the next integer after the highest-numbered request. */
+	_HACKRF_VENDOR_REQUEST_ARRAY_SIZE	
+} hackrf_vendor_request;
+
+static usb_request_handler_fn vendor_request_handler[] = {
 	NULL,
 	usb_vendor_request_set_transceiver_mode,
 	usb_vendor_request_write_max2837,
@@ -91,9 +138,20 @@ static const usb_request_handler_fn vendor_request_handler[] = {
 	usb_vendor_request_set_hw_sync_mode,
 	usb_vendor_request_reset,
 	usb_vendor_request_operacake_set_ranges,
-	usb_vendor_request_counter_start,
+
+	usb_vendor_request_set_clkout_enable,
+	usb_vendor_request_spiflash_status,
+	usb_vendor_request_spiflash_clear_status,
+	usb_vendor_request_operacake_gpio_test,
+#ifdef HACKRF_ONE
+	usb_vendor_request_cpld_checksum,
+#else
+	NULL,
+#endif
+  usb_vendor_request_counter_start,
 	usb_vendor_request_counter_stop,
 	usb_vendor_request_counter_set
+
 };
 
 static const uint32_t vendor_request_handler_count =
@@ -129,11 +187,9 @@ void usb_configuration_changed(
 	set_transceiver_mode(TRANSCEIVER_MODE_OFF);
 	if( device->configuration->number == 1 ) {
 		// transceiver configuration
-		cpu_clock_pll1_max_speed();
 		led_on(LED1);
 	} else {
 		/* Configuration number equal 0 means usb bus reset. */
-		cpu_clock_pll1_low_speed();
 		led_off(LED1);
 	}
 }
@@ -163,6 +219,14 @@ void usb_set_descriptor_by_serial_number(void)
 	}
 }
 
+static bool cpld_jtag_sram_load(jtag_t* const jtag) {
+	cpld_jtag_take(jtag);
+	cpld_xc2c64a_jtag_sram_write(jtag, &cpld_hackrf_program_sram);
+	const bool success = cpld_xc2c64a_jtag_sram_verify(jtag, &cpld_hackrf_program_sram, &cpld_hackrf_verify);
+	cpld_jtag_release(jtag);
+	return success;
+}
+
 int main(void) {
 	pin_setup();
 	enable_1v8_power();
@@ -174,7 +238,13 @@ int main(void) {
 #endif
 	cpu_clock_init();
 
+	if( !cpld_jtag_sram_load(&jtag_cpld) ) {
+		halt_and_flash(6000000);
+	}
+
+#ifndef DFU_MODE
 	usb_set_descriptor_by_serial_number();
+#endif
 
 	usb_set_configuration_changed_cb(usb_configuration_changed);
 	usb_peripheral_reset();
@@ -191,12 +261,15 @@ int main(void) {
 	
 	nvic_set_priority(NVIC_USB0_IRQ, 255);
 
-	hackrf_ui_init();
+	hackrf_ui()->init();
 
 	usb_run(&usb_device);
 	
 	rf_path_init(&rf_path);
-	operacake_init();
+
+	if( hackrf_ui() == NULL ) {
+		operacake_init();
+	}
 
 	unsigned int phase = 0;
 
