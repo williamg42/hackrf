@@ -49,8 +49,10 @@
 
 #define OPERACAKE_SAMESIDE  OPERACAKE_PIN_U1CTRL(1)
 #define OPERACAKE_CROSSOVER OPERACAKE_PIN_U1CTRL(0)
+
 #define OPERACAKE_EN_LEDS (OPERACAKE_PIN_LEDEN2(1) | OPERACAKE_PIN_LEDEN2(0))
 #define OPERACAKE_GPIO_ENABLE OPERACAKE_PIN_OE(0)
+
 #define OPERACAKE_GPIO_DISABLE OPERACAKE_PIN_OE(1)
 
 #define OPERACAKE_REG_INPUT    0x00
@@ -130,13 +132,15 @@ uint8_t operacake_set_ports(uint8_t address, uint8_t PA, uint8_t PB) {
 	/* Start with some error checking,
 	 * which should have been done either
 	 * on the host or elsewhere in firmware
+	 * If PA and PB are 0, then enable GPIO control for use with the SCTimer
 	 */
 	if((PA > OPERACAKE_PB4) || (PB > OPERACAKE_PB4)) {
 		return 1;
 	}
 	/* Check which side PA and PB are on */
-	if(((PA <= OPERACAKE_PA4) && (PB <= OPERACAKE_PA4))
-	    || ((PA > OPERACAKE_PA4) && (PB > OPERACAKE_PA4))) {
+	if((((PA <= OPERACAKE_PA4) && (PB <= OPERACAKE_PA4))
+	    || ((PA > OPERACAKE_PA4) && (PB > OPERACAKE_PA4)))
+	    && !(PA == 0 && PB == 0)) {
 		return 1;
 	}
 	
@@ -151,6 +155,14 @@ uint8_t operacake_set_ports(uint8_t address, uint8_t PA, uint8_t PB) {
 		
 	reg = (OPERACAKE_GPIO_DISABLE | side
 					| pa | pb | OPERACAKE_EN_LEDS);
+	if (PA == 0 && PB == 0) {
+		// Operacake will be controlled by GPIO
+		uint8_t config_pins = (uint8_t)~(OPERACAKE_PIN_OE(1) | OPERACAKE_PIN_LEDEN(1) | OPERACAKE_PIN_LEDEN2(1));
+		reg = OPERACAKE_GPIO_EN | OPERACAKE_EN_LEDS;
+		operacake_write_reg(oc_bus, address, OPERACAKE_REG_CONFIG, config_pins);
+	} else {
+		operacake_write_reg(oc_bus, address, OPERACAKE_REG_CONFIG, OPERACAKE_CONFIG_ALL_OUTPUT);
+	}
 	operacake_write_reg(oc_bus, address, OPERACAKE_REG_OUTPUT, reg);
 	return 0;
 }

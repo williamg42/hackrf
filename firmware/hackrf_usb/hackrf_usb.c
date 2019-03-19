@@ -44,9 +44,11 @@
 #include "operacake.h"
 #include "usb_api_sweep.h"
 #include "usb_api_transceiver.h"
+#include "usb_api_counter.h"
 #include "usb_bulk_buffer.h"
+
 #include "cpld_xc2c.h"
- 
+
 #include "hackrf-ui.h"
 
 // TODO: Duplicate code/knowledge, copied from /host/libhackrf/src/hackrf.c
@@ -136,6 +138,7 @@ static usb_request_handler_fn vendor_request_handler[] = {
 	usb_vendor_request_set_hw_sync_mode,
 	usb_vendor_request_reset,
 	usb_vendor_request_operacake_set_ranges,
+
 	usb_vendor_request_set_clkout_enable,
 	usb_vendor_request_spiflash_status,
 	usb_vendor_request_spiflash_clear_status,
@@ -145,6 +148,10 @@ static usb_request_handler_fn vendor_request_handler[] = {
 #else
 	NULL,
 #endif
+  usb_vendor_request_counter_start,
+	usb_vendor_request_counter_stop,
+	usb_vendor_request_counter_set
+
 };
 
 static const uint32_t vendor_request_handler_count =

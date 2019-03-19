@@ -1,6 +1,7 @@
 /*
  * Copyright 2012 Jared Boone <jared@sharebrained.com>
  * Copyright 2013 Benjamin Vernoux <titanmkd@gmail.com>
+ * Copyright 2017 Schuyler St. Leger <schuyler.st.leger@gmail.com>
  *
  * This file is part of HackRF.
  *
@@ -26,6 +27,7 @@
 #include <hackrf_core.h>
 
 #include <sgpio.h>
+#include "operacake_rotator.h"
 
 #ifdef RAD1O
 static void update_q_invert(sgpio_config_t* const config);
@@ -159,7 +161,7 @@ void sgpio_configure(
 	const uint_fast8_t slice_count = config->slice_mode_multislice ? 8 : 1;
 	const uint_fast8_t clk_capture_mode = (direction == SGPIO_DIRECTION_TX) ? 0 : 0;
 	
-	uint32_t slice_enable_mask = 0;
+	uint32_t slice_enable_mask = 0 | BIT3;
 	/* Configure Slice A, I, E, J, C, K, F, L (sgpio_slice_mode_multislice mode) */
 	for(uint_fast8_t i=0; i<slice_count; i++)
 	{
@@ -249,6 +251,8 @@ void sgpio_cpld_stream_disable(sgpio_config_t* const config) {
 	(void)config;
 	// Disable codec data stream.
 	SGPIO_GPIO_OUTREG |= (1L << 10); /* SGPIO10 */
+
+	operacake_rotator_reset_state();
 }
 
 bool sgpio_cpld_stream_is_enabled(sgpio_config_t* const config) {
