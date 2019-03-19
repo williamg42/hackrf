@@ -158,7 +158,7 @@ uint8_t operacake_set_ports(uint8_t address, uint8_t PA, uint8_t PB) {
 	if (PA == 0 && PB == 0) {
 		// Operacake will be controlled by GPIO
 		uint8_t config_pins = (uint8_t)~(OPERACAKE_PIN_OE(1) | OPERACAKE_PIN_LEDEN(1) | OPERACAKE_PIN_LEDEN2(1));
-		reg = OPERACAKE_GPIO_ENABLE | OPERACAKE_EN_LEDS;
+		reg = OPERACAKE_GPIO_EN | OPERACAKE_EN_LEDS;
 		operacake_write_reg(oc_bus, address, OPERACAKE_REG_CONFIG, config_pins);
 	} else {
 		operacake_write_reg(oc_bus, address, OPERACAKE_REG_CONFIG, OPERACAKE_CONFIG_ALL_OUTPUT);
